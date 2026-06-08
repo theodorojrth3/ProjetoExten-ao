@@ -26,6 +26,12 @@ function setMainContent(html) {
   document.getElementById('mainContent').innerHTML = html;
 }
 
+function setActiveNav(page) {
+  document.querySelectorAll('.nav-item').forEach((navItem) => {
+    navItem.classList.toggle('active', navItem.dataset.page === page);
+  });
+}
+
 function getAuthParams() {
   const searchParams = new URLSearchParams(window.location.search);
   const hashString = window.location.hash.startsWith('#')
@@ -35,8 +41,21 @@ function getAuthParams() {
 
   return {
     type: searchParams.get('type') || hashParams.get('type'),
-    accessToken: searchParams.get('access_token') || hashParams.get('access_token')
+    accessToken: searchParams.get('access_token') || hashParams.get('access_token'),
+    refreshToken: searchParams.get('refresh_token') || hashParams.get('refresh_token'),
+    code: searchParams.get('code') || hashParams.get('code'),
+    tokenHash: searchParams.get('token_hash') || hashParams.get('token_hash')
   };
+}
+
+function isPasswordSetupFlow(authParams) {
+  return Boolean(
+    authParams.type === 'invite' ||
+    authParams.type === 'recovery' ||
+    authParams.accessToken ||
+    authParams.code ||
+    authParams.tokenHash
+  );
 }
 
 function clearAuthUrlArtifacts() {
@@ -324,9 +343,7 @@ document.querySelectorAll('.nav-item').forEach((item) => {
   item.addEventListener('click', (event) => {
     event.preventDefault();
     const page = event.currentTarget.dataset.page;
-
-    document.querySelectorAll('.nav-item').forEach((navItem) => navItem.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    setActiveNav(page);
 
     if (pages[page]) {
       pages[page]();
@@ -417,33 +434,35 @@ function renderDashboard() {
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div class="dashboard-panels">
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">Produtos Mais Valiosos</h3>
         </div>
         ${topProducts.length > 0 ? `
-          <table>
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>Qtd</th>
-                <th>Valor Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${topProducts.map((product) => `
+          <div class="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td>
-                    <strong>${product.name}</strong><br>
-                    <small style="color: var(--text-muted);">${product.category || 'Sem categoria'}</small>
-                  </td>
-                  <td>${product.qty}</td>
-                  <td><strong>${formatMoney(product.qty * product.price)}</strong></td>
+                  <th>Produto</th>
+                  <th>Qtd</th>
+                  <th>Valor Total</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${topProducts.map((product) => `
+                  <tr>
+                    <td>
+                      <strong>${product.name}</strong><br>
+                      <small style="color: var(--text-muted);">${product.category || 'Sem categoria'}</small>
+                    </td>
+                    <td>${product.qty}</td>
+                    <td><strong>${formatMoney(product.qty * product.price)}</strong></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         ` : '<div class="empty-state"><div class="empty-icon">P</div><div class="empty-title">Nenhum produto cadastrado</div></div>'}
       </div>
 
@@ -452,26 +471,28 @@ function renderDashboard() {
           <h3 class="card-title">Movimentacoes Recentes</h3>
         </div>
         ${recentMovements.length > 0 ? `
-          <table>
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>Produto</th>
-                <th>Qtd</th>
-                <th>Data</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${recentMovements.map((movement) => `
+          <div class="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td><span class="badge ${movement.type === 'entry' ? 'badge-success' : 'badge-danger'}">${movement.type === 'entry' ? 'Entrada' : 'Saida'}</span></td>
-                  <td>${movement.productName}</td>
-                  <td>${movement.qty}</td>
-                  <td><small>${formatDate(movement.date)}</small></td>
+                  <th>Tipo</th>
+                  <th>Produto</th>
+                  <th>Qtd</th>
+                  <th>Data</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${recentMovements.map((movement) => `
+                  <tr>
+                    <td><span class="badge ${movement.type === 'entry' ? 'badge-success' : 'badge-danger'}">${movement.type === 'entry' ? 'Entrada' : 'Saida'}</span></td>
+                    <td>${movement.productName}</td>
+                    <td>${movement.qty}</td>
+                    <td><small>${formatDate(movement.date)}</small></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         ` : '<div class="empty-state"><div class="empty-icon">M</div><div class="empty-title">Nenhuma movimentacao registrada</div></div>'}
       </div>
     </div>
@@ -556,6 +577,7 @@ function renderProductsTable(search = '', filtered = products) {
   }
 
   tableEl.innerHTML = `
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -598,6 +620,7 @@ function renderProductsTable(search = '', filtered = products) {
         }).join('')}
       </tbody>
     </table>
+    </div>
   `;
 }
 
@@ -652,6 +675,7 @@ function renderSuppliersTable(search = '') {
   }
 
   tableEl.innerHTML = `
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -685,6 +709,7 @@ function renderSuppliersTable(search = '') {
         }).join('')}
       </tbody>
     </table>
+    </div>
   `;
 }
 
@@ -732,6 +757,7 @@ function renderMovementsTable(list = movements) {
   }
 
   tableEl.innerHTML = `
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -754,6 +780,7 @@ function renderMovementsTable(list = movements) {
         `).join('')}
       </tbody>
     </table>
+    </div>
   `;
 }
 
@@ -811,6 +838,7 @@ function renderReports() {
         <h3 class="card-title">Valor por Categoria</h3>
       </div>
       ${Object.keys(categoriesMap).length > 0 ? `
+        <div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -844,6 +872,7 @@ function renderReports() {
               }).join('')}
           </tbody>
         </table>
+        </div>
       ` : '<div class="empty-state"><div class="empty-icon">R</div><div class="empty-title">Sem dados para exibir</div></div>'}
     </div>
   `);
@@ -866,6 +895,7 @@ function renderAlerts() {
         <h3 class="card-title">Estoque Baixo (${lowStock.length})</h3>
       </div>
       ${lowStock.length > 0 ? `
+        <div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -890,6 +920,7 @@ function renderAlerts() {
             `).join('')}
           </tbody>
         </table>
+        </div>
       ` : '<div class="empty-state"><div class="empty-icon">OK</div><div class="empty-title">Nenhum produto com estoque baixo</div></div>'}
     </div>
 
@@ -898,6 +929,7 @@ function renderAlerts() {
         <h3 class="card-title">Sem Estoque (${outOfStock.length})</h3>
       </div>
       ${outOfStock.length > 0 ? `
+        <div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -922,6 +954,7 @@ function renderAlerts() {
             `).join('')}
           </tbody>
         </table>
+        </div>
       ` : '<div class="empty-state"><div class="empty-icon">OK</div><div class="empty-title">Nenhum produto sem estoque</div></div>'}
     </div>
   `);
@@ -1272,6 +1305,19 @@ async function initializeLogin() {
 
   const authParams = getAuthParams();
   authFlowType = authParams.type;
+  const shouldOpenPasswordSetup = isPasswordSetupFlow(authParams);
+
+  if (authParams.code) {
+    try {
+      const { error } = await supabaseClient.auth.exchangeCodeForSession(authParams.code);
+      if (error) throw error;
+    } catch (error) {
+      console.error(error);
+      openLoginScreen();
+      showLoginError('Nao foi possivel validar o convite. Solicite um novo link.');
+      return;
+    }
+  }
 
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
@@ -1283,7 +1329,7 @@ async function initializeLogin() {
       return;
     }
 
-    if (authFlowType === 'invite' || authFlowType === 'recovery') {
+    if (shouldOpenPasswordSetup) {
       setAuthView('set-password');
       setAuthMode(true);
       return;
@@ -1299,7 +1345,7 @@ async function initializeLogin() {
 
   const sessionUser = data.session?.user;
 
-  if (sessionUser && (authFlowType === 'invite' || authFlowType === 'recovery')) {
+  if (sessionUser && shouldOpenPasswordSetup) {
     setAuthView('set-password');
     setAuthMode(true);
     return;
