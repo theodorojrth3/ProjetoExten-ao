@@ -11,7 +11,45 @@
   <link rel="stylesheet" href="style.css">
 
 </head>
-<body>
+<body class="auth-locked">
+  <section class="login-shell" id="loginScreen">
+    <div class="login-panel">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="logo"></div>
+          <div class="brand-text">
+            <h1>DISMAR</h1>
+            <p>Gestao Inteligente</p>
+          </div>
+        </div>
+
+        <div class="login-copy">
+          <h3>Entrar no sistema</h3>
+          <p>Informe suas credenciais para acessar o painel.</p>
+        </div>
+
+        <form id="loginForm" class="login-form">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">E-mail</label>
+            <input type="email" class="form-input" id="loginEmail" name="email" placeholder="seuemail@empresa.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Senha</label>
+            <input type="password" class="form-input" id="loginPassword" name="password" placeholder="Sua senha" required>
+          </div>
+          <div class="login-row">
+            <label class="login-check">
+              <input type="checkbox" id="rememberSession" checked>
+              <span>Manter sessao neste navegador</span>
+            </label>
+          </div>
+          <p class="login-error" id="loginError"></p>
+          <button type="submit" class="btn btn-primary login-submit">Acessar painel</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -59,6 +97,13 @@
       <div class="theme-toggle" id="themeToggle">
         <span style="font-size: 14px; font-weight: 500;">Tema Escuro</span>
         <span id="themeIcon">🌙</span>
+      </div>
+      <div class="user-panel">
+        <div class="user-meta">
+          <strong id="currentUserName">Equipe Dismar</strong>
+          <span id="currentUserRole">Operacao local</span>
+        </div>
+        <button class="btn btn-secondary logout-btn" id="logoutBtn">Sair</button>
       </div>
     </aside>
 

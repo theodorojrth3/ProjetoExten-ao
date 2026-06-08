@@ -8,6 +8,16 @@ let products = [];
 let suppliers = [];
 let movements = [];
 let config = { theme: 'light', currency: 'BRL' };
+let currentUser = null;
+let appReady = false;
+
+const AUTH_STORAGE_KEY = 'dismar_auth_session';
+const DEMO_USER = {
+  email: 'admin@dismar.com',
+  password: '123456',
+  name: 'Equipe Dismar',
+  role: 'Administrador de Estoque'
+};
 
 const pages = {
   dashboard: () => renderDashboard(),
@@ -20,6 +30,75 @@ const pages = {
 
 function setMainContent(html) {
   document.getElementById('mainContent').innerHTML = html;
+}
+
+function readStoredSession() {
+  try {
+    const rawSession = localStorage.getItem(AUTH_STORAGE_KEY);
+    return rawSession ? JSON.parse(rawSession) : null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function persistSession(user, rememberSession) {
+  if (rememberSession) {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function updateUserPanel() {
+  const userName = document.getElementById('currentUserName');
+  const userRole = document.getElementById('currentUserRole');
+
+  if (!userName || !userRole) return;
+
+  userName.textContent = currentUser?.name || 'Equipe Dismar';
+  userRole.textContent = currentUser?.role || 'Operacao local';
+}
+
+function setAuthMode(isLocked) {
+  document.body.classList.toggle('auth-locked', isLocked);
+}
+
+function openLoginScreen() {
+  currentUser = null;
+  updateUserPanel();
+  clearSession();
+  setAuthMode(true);
+}
+
+function showLoginError(message = '') {
+  const loginError = document.getElementById('loginError');
+  if (loginError) {
+    loginError.textContent = message;
+  }
+}
+
+async function openAppSession(user, rememberSession) {
+  currentUser = {
+    name: user.name,
+    email: user.email,
+    role: user.role
+  };
+
+  persistSession(currentUser, rememberSession);
+  updateUserPanel();
+  showLoginError('');
+  setAuthMode(false);
+
+  if (!appReady) {
+    await initializeApp();
+  } else {
+    renderDashboard();
+  }
 }
 
 function applyTheme() {
@@ -198,6 +277,29 @@ document.getElementById('themeToggle').addEventListener('click', async () => {
     applyTheme();
     handleError(error, 'Nao foi possivel salvar o tema.');
   }
+});
+
+document.getElementById('loginForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const email = event.target.email.value.trim().toLowerCase();
+  const password = event.target.password.value.trim();
+  const rememberSession = document.getElementById('rememberSession').checked;
+
+  if (email !== DEMO_USER.email || password !== DEMO_USER.password) {
+    showLoginError('Credenciais invalidas.');
+    return;
+  }
+
+  await openAppSession(DEMO_USER, rememberSession);
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  openLoginScreen();
+  document.getElementById('loginForm').reset();
+  document.getElementById('rememberSession').checked = true;
+  document.getElementById('loginEmail').value = DEMO_USER.email;
+  document.getElementById('loginPassword').value = '';
 });
 
 function renderDashboard() {
@@ -1032,6 +1134,7 @@ function quickSearch(event) {
 
 async function initializeApp() {
   applyTheme();
+  appReady = true;
 
   if (!supabaseClient) {
     renderNotice(
@@ -1055,4 +1158,25 @@ async function initializeApp() {
   }
 }
 
-initializeApp();
+function initializeLogin() {
+  const storedSession = readStoredSession();
+
+  document.getElementById('loginEmail').value = storedSession?.email || DEMO_USER.email;
+  document.getElementById('loginPassword').value = '';
+  updateUserPanel();
+
+  if (storedSession?.email) {
+    openAppSession(
+      {
+        ...DEMO_USER,
+        ...storedSession
+      },
+      true
+    );
+    return;
+  }
+
+  setAuthMode(true);
+}
+
+initializeLogin();
