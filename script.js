@@ -224,7 +224,16 @@ async function openAppSession(user) {
 
 function applyTheme() {
   document.body.classList.toggle('dark', config.theme === 'dark');
-  document.getElementById('themeIcon').textContent = config.theme === 'dark' ? 'Sun' : 'Moon';
+  const themeLabel = document.getElementById('themeLabel');
+  const themeIcon = document.getElementById('themeIcon');
+
+  if (themeLabel) {
+    themeLabel.textContent = config.theme === 'dark' ? 'Tema Escuro' : 'Tema Claro';
+  }
+
+  if (themeIcon) {
+    themeIcon.textContent = config.theme === 'dark' ? 'Escuro' : 'Claro';
+  }
 }
 
 function renderNotice(title, description) {
