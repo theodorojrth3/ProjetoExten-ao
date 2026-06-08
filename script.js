@@ -1080,42 +1080,24 @@ window.adjustStock = async (id, type) => {
   const qty = parseInt(prompt(`${type === 'entry' ? 'Entrada' : 'Saida'} de estoque para ${product.name}:\n\nQuantidade:`), 10);
   if (!qty || qty <= 0) return;
 
-  const oldQty = product.qty;
-  const newQty = type === 'entry' ? oldQty + qty : oldQty - qty;
-
-  if (newQty < 0) {
-    alert('Quantidade insuficiente em estoque!');
-    return;
-  }
-
   try {
-    const { error: productError } = await supabaseClient
-      .from('products')
-      .update({
-        qty: newQty,
-        last_update: new Date().toISOString()
-      })
-      .eq('id', product.id);
+    const { error } = await supabaseClient.rpc('adjust_product_stock', {
+      p_product_id: product.id,
+      p_type: type,
+      p_qty: qty,
+      p_notes: ''
+    });
 
-    if (productError) throw productError;
-
-    const { error: movementError } = await supabaseClient
-      .from('movements')
-      .insert({
-        product_id: product.id,
-        product_name: product.name,
-        type,
-        qty,
-        old_qty: oldQty,
-        new_qty: newQty,
-        notes: ''
-      });
-
-    if (movementError) throw movementError;
+    if (error) throw error;
 
     await Promise.all([fetchProducts(), fetchMovements()]);
     renderProducts();
   } catch (error) {
+    if (error?.message === 'Insufficient stock') {
+      alert('Quantidade insuficiente em estoque!');
+      return;
+    }
+
     handleError(error, 'Nao foi possivel atualizar o estoque.');
   }
 };

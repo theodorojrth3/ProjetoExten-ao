@@ -11,6 +11,14 @@ O arquivo [supabase-schema.sql](c:\Users\carlo\Desktop\x15\dismar_stock-main\dis
 - `movements`
 - `app_config`
 
+Tambem cria objetos de apoio para dashboard e operacao:
+
+- `dashboard_summary`
+- `inventory_by_category`
+- `stock_alerts`
+- `recent_movements_view`
+- `adjust_product_stock(...)`
+
 Ele tambem adiciona:
 
 - indices para busca e listagem
@@ -21,8 +29,9 @@ Ele tambem adiciona:
 
 1. Crie um projeto no Supabase.
 2. Abra o `SQL Editor` e execute o arquivo [supabase-schema.sql](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-schema.sql).
-3. Copie a `Project URL` e a `anon public key` em `Settings > API`.
-4. Preencha [supabase-config.js](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-config.js):
+3. Se quiser dados de teste para o dashboard, execute tambem [supabase-seed.sql](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-seed.sql).
+4. Copie a `Project URL` e a `anon public key` em `Settings > API`.
+5. Preencha [supabase-config.js](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-config.js):
 
 ```js
 window.SUPABASE_CONFIG = {
@@ -31,7 +40,18 @@ window.SUPABASE_CONFIG = {
 };
 ```
 
-5. Abra o `index.html` normalmente no navegador.
+6. Abra o `index.html` normalmente no navegador.
+
+## Cobertura do banco
+
+O Supabase agora sustenta:
+
+- dashboard com metricas gerais de estoque
+- relatorio por categoria
+- alertas de estoque baixo e ruptura
+- historico de movimentacoes
+- configuracao geral do app
+- ajuste de estoque com transacao no banco para evitar inconsistencias
 
 ## Observacao
 
