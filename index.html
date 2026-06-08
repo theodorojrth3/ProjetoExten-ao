@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dismar 2.0 - Gerenciamento de Estoque</title>
+  <link rel="icon" type="image/png" href="dismar_PNG.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="brand-text">
+          <h1>DISMAR</h1>
+          <p>Gestão Inteligente</p>
+        </div>
+      </div>
+
+      <nav>
+        <div class="nav-section">
+          <div class="nav-title">Menu Principal</div>
+          <a href="#" class="nav-item active" data-page="dashboard">
+            <span class="nav-icon">📊</span>
+            Dashboard
+          </a>
+          <a href="#" class="nav-item" data-page="products">
+            <span class="nav-icon">📦</span>
+            Produtos
+          </a>
+          <a href="#" class="nav-item" data-page="suppliers">
+            <span class="nav-icon">🏢</span>
+            Fornecedores
+          </a>
+          <a href="#" class="nav-item" data-page="movements">
+            <span class="nav-icon">🔄</span>
+            Movimentações
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-title">Relatórios</div>
+          <a href="#" class="nav-item" data-page="reports">
+            <span class="nav-icon">📈</span>
+            Relatórios
+          </a>
+          <a href="#" class="nav-item" data-page="alerts">
+            <span class="nav-icon">⚠️</span>
+            Alertas
+          </a>
+        </div>
+      </nav>
+
+      <div class="theme-toggle" id="themeToggle">
+        <span style="font-size: 14px; font-weight: 500;">Tema Escuro</span>
+        <span id="themeIcon">🌙</span>
+      </div>
+    </aside>
+
+    <main class="main" id="mainContent">
+      <!-- Conteúdo será injetado aqui -->
+    </main>
+  </div>
+
+  <!-- Modal Produto -->
+  <div class="modal" id="productModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="productModalTitle">Novo Produto</h3>
+        <button class="close-btn" id="closeProductModal">×</button>
+      </div>
+      <form id="productForm">
+        <div class="form-group">
+          <label class="form-label">Nome do Produto *</label>
+          <input type="text" class="form-input" name="name" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">SKU</label>
+            <input type="text" class="form-input" name="sku">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <input type="text" class="form-input" name="category">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Quantidade *</label>
+            <input type="number" class="form-input" name="qty" min="0" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preço Unitário (R$) *</label>
+            <input type="number" class="form-input" name="price" min="0" step="0.01" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Estoque Mínimo</label>
+            <input type="number" class="form-input" name="minStock" min="0" value="10">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fornecedor</label>
+            <select class="form-select" name="supplier">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelProduct">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Fornecedor -->
+  <div class="modal" id="supplierModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="supplierModalTitle">Novo Fornecedor</h3>
+        <button class="close-btn" id="closeSupplierModal">×</button>
+      </div>
+      <form id="supplierForm">
+        <div class="form-group">
+          <label class="form-label">Nome *</label>
+          <input type="text" class="form-input" name="name" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">CNPJ</label>
+            <input type="text" class="form-input" name="cnpj">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefone</label>
+            <input type="tel" class="form-input" name="phone">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input type="email" class="form-input" name="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Endereço</label>
+          <input type="text" class="form-input" name="address">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelSupplier">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Fornecedor</button>
+        </div>
+      </form>
+    </div>
+  </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
