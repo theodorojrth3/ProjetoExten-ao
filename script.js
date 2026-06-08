@@ -9,15 +9,9 @@ let suppliers = [];
 let movements = [];
 let config = { theme: 'light', currency: 'BRL' };
 let currentUser = null;
+let currentProfile = null;
 let appReady = false;
-
-const AUTH_STORAGE_KEY = 'dismar_auth_session';
-const DEMO_USER = {
-  email: 'admin@dismar.com',
-  password: '123456',
-  name: 'Equipe Dismar',
-  role: 'Administrador de Estoque'
-};
+let authFlowType = null;
 
 const pages = {
   dashboard: () => renderDashboard(),
@@ -32,26 +26,30 @@ function setMainContent(html) {
   document.getElementById('mainContent').innerHTML = html;
 }
 
-function readStoredSession() {
-  try {
-    const rawSession = localStorage.getItem(AUTH_STORAGE_KEY);
-    return rawSession ? JSON.parse(rawSession) : null;
-  } catch (error) {
-    console.error(error);
-    return null;
+function getAuthParams() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashString = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const hashParams = new URLSearchParams(hashString);
+
+  return {
+    type: searchParams.get('type') || hashParams.get('type'),
+    accessToken: searchParams.get('access_token') || hashParams.get('access_token')
+  };
+}
+
+function clearAuthUrlArtifacts() {
+  if (window.location.hash || window.location.search) {
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
 
-function persistSession(user, rememberSession) {
-  if (rememberSession) {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-  } else {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+function showSetPasswordError(message = '') {
+  const errorElement = document.getElementById('setPasswordError');
+  if (errorElement) {
+    errorElement.textContent = message;
   }
-}
-
-function clearSession() {
-  localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 function updateUserPanel() {
@@ -60,18 +58,45 @@ function updateUserPanel() {
 
   if (!userName || !userRole) return;
 
-  userName.textContent = currentUser?.name || 'Equipe Dismar';
-  userRole.textContent = currentUser?.role || 'Operacao local';
+  userName.textContent = currentUser?.name || currentUser?.email || 'Equipe Dismar';
+  userRole.textContent = currentUser?.role || 'Usuario autenticado';
 }
 
 function setAuthMode(isLocked) {
   document.body.classList.toggle('auth-locked', isLocked);
 }
 
+function setAuthView(view) {
+  const loginForm = document.getElementById('loginForm');
+  const setPasswordForm = document.getElementById('setPasswordForm');
+  const loginTitle = document.querySelector('.login-copy h3');
+  const loginDescription = document.getElementById('loginDescription');
+  const authNote = document.getElementById('authNote');
+
+  if (!loginForm || !setPasswordForm || !loginTitle || !loginDescription || !authNote) return;
+
+  const isSetPasswordView = view === 'set-password';
+  loginForm.classList.toggle('auth-hidden', isSetPasswordView);
+  setPasswordForm.classList.toggle('auth-hidden', !isSetPasswordView);
+
+  if (isSetPasswordView) {
+    loginTitle.textContent = 'Criar senha de acesso';
+    loginDescription.textContent = 'Seu convite foi validado. Defina a senha para concluir o primeiro acesso.';
+    authNote.textContent = 'Depois de definir a senha, o login sera feito com e-mail e senha.';
+  } else {
+    loginTitle.textContent = 'Entrar no sistema';
+    loginDescription.textContent = 'Informe suas credenciais para acessar o painel.';
+    authNote.textContent = 'O acesso e liberado apenas para usuarios convidados por e-mail.';
+  }
+}
+
 function openLoginScreen() {
   currentUser = null;
+  currentProfile = null;
   updateUserPanel();
-  clearSession();
+  showLoginError('');
+  showSetPasswordError('');
+  setAuthView('login');
   setAuthMode(true);
 }
 
@@ -82,17 +107,65 @@ function showLoginError(message = '') {
   }
 }
 
-async function openAppSession(user, rememberSession) {
-  currentUser = {
-    name: user.name,
+async function syncCurrentProfile(user) {
+  const fallbackName = user.user_metadata?.full_name || user.email || 'Usuario';
+
+  const payload = {
+    id: user.id,
     email: user.email,
-    role: user.role
+    full_name: fallbackName,
+    is_active: true,
+    accepted_at: new Date().toISOString(),
+    last_login_at: new Date().toISOString()
   };
 
-  persistSession(currentUser, rememberSession);
+  const { error } = await supabaseClient
+    .from('profiles')
+    .upsert(payload, { onConflict: 'id' });
+
+  if (error) throw error;
+}
+
+async function fetchCurrentProfile(userId) {
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .select('id, email, full_name, role, is_active, accepted_at')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function openAppSession(user) {
+  if (!supabaseClient) {
+    openLoginScreen();
+    showLoginError('Supabase nao configurado.');
+    return;
+  }
+
+  await syncCurrentProfile(user);
+  currentProfile = await fetchCurrentProfile(user.id);
+
+  if (currentProfile && currentProfile.is_active === false) {
+    await supabaseClient.auth.signOut();
+    openLoginScreen();
+    showLoginError('Seu usuario esta inativo. Fale com o administrador.');
+    return;
+  }
+
+  currentUser = {
+    name: currentProfile?.full_name || user.user_metadata?.full_name || user.email,
+    email: user.email,
+    role: currentProfile?.role || 'operator'
+  };
+
   updateUserPanel();
   showLoginError('');
+  showSetPasswordError('');
   setAuthMode(false);
+  authFlowType = null;
+  clearAuthUrlArtifacts();
 
   if (!appReady) {
     await initializeApp();
@@ -277,29 +350,6 @@ document.getElementById('themeToggle').addEventListener('click', async () => {
     applyTheme();
     handleError(error, 'Nao foi possivel salvar o tema.');
   }
-});
-
-document.getElementById('loginForm').addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  const email = event.target.email.value.trim().toLowerCase();
-  const password = event.target.password.value.trim();
-  const rememberSession = document.getElementById('rememberSession').checked;
-
-  if (email !== DEMO_USER.email || password !== DEMO_USER.password) {
-    showLoginError('Credenciais invalidas.');
-    return;
-  }
-
-  await openAppSession(DEMO_USER, rememberSession);
-});
-
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  openLoginScreen();
-  document.getElementById('loginForm').reset();
-  document.getElementById('rememberSession').checked = true;
-  document.getElementById('loginEmail').value = DEMO_USER.email;
-  document.getElementById('loginPassword').value = '';
 });
 
 function renderDashboard() {
@@ -1140,25 +1190,127 @@ async function initializeApp() {
   }
 }
 
-function initializeLogin() {
-  const storedSession = readStoredSession();
+document.getElementById('loginForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
 
-  document.getElementById('loginEmail').value = storedSession?.email || DEMO_USER.email;
-  document.getElementById('loginPassword').value = '';
-  updateUserPanel();
-
-  if (storedSession?.email) {
-    openAppSession(
-      {
-        ...DEMO_USER,
-        ...storedSession
-      },
-      true
-    );
+  if (!supabaseClient) {
+    showLoginError('Supabase nao configurado.');
     return;
   }
 
-  setAuthMode(true);
+  const email = event.target.email.value.trim().toLowerCase();
+  const password = event.target.password.value.trim();
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
+    if (!data.user) throw new Error('Nao foi possivel iniciar a sessao.');
+
+    await openAppSession(data.user);
+  } catch (error) {
+    showLoginError('Credenciais invalidas ou acesso nao liberado.');
+    console.error(error);
+  }
+});
+
+document.getElementById('setPasswordForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (!supabaseClient) {
+    showSetPasswordError('Supabase nao configurado.');
+    return;
+  }
+
+  const password = event.target.password.value.trim();
+  const passwordConfirm = event.target.passwordConfirm.value.trim();
+
+  if (password.length < 6) {
+    showSetPasswordError('A senha precisa ter pelo menos 6 caracteres.');
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    showSetPasswordError('As senhas nao coincidem.');
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw error;
+    if (!data.user) throw new Error('Nao foi possivel concluir o convite.');
+
+    authFlowType = null;
+    await openAppSession(data.user);
+  } catch (error) {
+    showSetPasswordError(error?.message || 'Nao foi possivel definir a senha.');
+    console.error(error);
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
+
+  document.getElementById('loginForm').reset();
+  document.getElementById('setPasswordForm').reset();
+  openLoginScreen();
+});
+
+async function initializeLogin() {
+  updateUserPanel();
+
+  if (!supabaseClient) {
+    openLoginScreen();
+    showLoginError('Supabase nao configurado.');
+    return;
+  }
+
+  const authParams = getAuthParams();
+  authFlowType = authParams.type;
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      openLoginScreen();
+      return;
+    }
+
+    if (!session?.user) {
+      return;
+    }
+
+    if (authFlowType === 'invite' || authFlowType === 'recovery') {
+      setAuthView('set-password');
+      setAuthMode(true);
+      return;
+    }
+
+    void openAppSession(session.user);
+  });
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    console.error(error);
+  }
+
+  const sessionUser = data.session?.user;
+
+  if (sessionUser && (authFlowType === 'invite' || authFlowType === 'recovery')) {
+    setAuthView('set-password');
+    setAuthMode(true);
+    return;
+  }
+
+  if (sessionUser) {
+    await openAppSession(sessionUser);
+    return;
+  }
+
+  openLoginScreen();
 }
 
 initializeLogin();

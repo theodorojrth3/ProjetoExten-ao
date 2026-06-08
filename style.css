@@ -133,6 +133,10 @@
       flex-direction: column;
     }
 
+    .auth-hidden {
+      display: none;
+    }
+
     .login-row {
       display: flex;
       align-items: center;
@@ -167,6 +171,13 @@
       color: var(--danger);
       font-size: 13px;
       margin-bottom: 12px;
+    }
+
+    .auth-note {
+      margin-top: 18px;
+      color: #7b6a6a;
+      font-size: 13px;
+      text-align: center;
     }
 
     .login-submit {

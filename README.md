@@ -1,5 +1,22 @@
 # dismar_stock
 
+## Conexão com Supabase
+
+O projeto já está configurado para usar o Supabase como backend.
+
+- `supabase-config.js`: contém `url` e `anonKey` do projeto Supabase.
+- `supabase-schema.sql`: cria tabelas, triggers, views e políticas de segurança necessárias.
+- `supabase-seed.sql`: popula fornecedores, produtos e movimentações de exemplo.
+
+### Como usar
+
+1. Abra o projeto no Supabase.
+2. Execute `supabase-schema.sql` na aba SQL editor.
+3. Execute `supabase-seed.sql` para inserir dados iniciais.
+4. Inicie o site localmente e abra `http://localhost:8000`.
+
+O `index.html` já carrega `supabase-config.js` e `script.js`, que usam a biblioteca `@supabase/supabase-js`.
+
 Front-end de controle de estoque integrado com Supabase.
 
 ## Estrutura do banco
@@ -19,6 +36,21 @@ Tambem cria objetos de apoio para dashboard e operacao:
 - `recent_movements_view`
 - `adjust_product_stock(...)`
 
+## Autenticacao por convite
+
+O projeto agora foi preparado para usar `Supabase Auth` com acesso apenas por convite de e-mail.
+
+Arquivo SQL da autenticacao:
+
+- [supabase-auth.sql](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-auth.sql)
+
+Esse arquivo cria:
+
+- `profiles`
+- trigger em `auth.users`
+- roles de app (`admin`, `manager`, `operator`, `viewer`)
+- policies RLS para travar `products`, `suppliers`, `movements` e `app_config` para usuarios autenticados e ativos
+
 Ele tambem adiciona:
 
 - indices para busca e listagem
@@ -30,8 +62,11 @@ Ele tambem adiciona:
 1. Crie um projeto no Supabase.
 2. Abra o `SQL Editor` e execute o arquivo [supabase-schema.sql](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-schema.sql).
 3. Se quiser dados de teste para o dashboard, execute tambem [supabase-seed.sql](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-seed.sql).
-4. Copie a `Project URL` e a `anon public key` em `Settings > API`.
-5. Preencha [supabase-config.js](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-config.js):
+4. Rode tambem [supabase-auth.sql](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-auth.sql) para autenticar o sistema com convite.
+5. Em `Authentication > Sign In / Providers`, desative cadastro publico e mantenha apenas login por e-mail/senha.
+6. Em `Authentication > Users`, convide os usuarios por e-mail.
+7. Copie a `Project URL` e a `anon public key` em `Settings > API`.
+8. Preencha [supabase-config.js](c:\Users\carlo\Desktop\x15\dismar_stock-main\dismar_stock-main\supabase-config.js):
 
 ```js
 window.SUPABASE_CONFIG = {
@@ -40,7 +75,7 @@ window.SUPABASE_CONFIG = {
 };
 ```
 
-6. Abra o `index.html` normalmente no navegador.
+9. Abra o `index.html` normalmente no navegador.
 
 ## Cobertura do banco
 
