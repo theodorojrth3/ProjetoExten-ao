@@ -12,18 +12,47 @@ let currentUser = null;
 let currentProfile = null;
 let appReady = false;
 let authFlowType = null;
+let currentPage = 'dashboard';
 
 const pages = {
-  dashboard: () => renderDashboard(),
-  products: () => renderProducts(),
-  suppliers: () => renderSuppliers(),
-  movements: () => renderMovements(),
-  reports: () => renderReports(),
-  alerts: () => renderAlerts()
+  dashboard: () => {
+    currentPage = 'dashboard';
+    renderDashboard();
+  },
+  products: () => {
+    currentPage = 'products';
+    renderProducts();
+  },
+  suppliers: () => {
+    currentPage = 'suppliers';
+    renderSuppliers();
+  },
+  movements: () => {
+    currentPage = 'movements';
+    renderMovements();
+  },
+  reports: () => {
+    currentPage = 'reports';
+    renderReports();
+  },
+  alerts: () => {
+    currentPage = 'alerts';
+    renderAlerts();
+  }
 };
 
 function setMainContent(html) {
   document.getElementById('mainContent').innerHTML = html;
+}
+
+function isCompactLayout() {
+  return window.innerWidth <= 768;
+}
+
+function renderCurrentPage() {
+  if (pages[currentPage]) {
+    pages[currentPage]();
+  }
 }
 
 function setActiveNav(page) {
@@ -378,6 +407,7 @@ function renderDashboard() {
   const topProducts = [...products]
     .sort((a, b) => (b.qty * b.price) - (a.qty * a.price))
     .slice(0, 5);
+  const compact = isCompactLayout();
 
   setMainContent(`
     <div class="top-bar">
@@ -440,7 +470,26 @@ function renderDashboard() {
           <h3 class="card-title">Produtos Mais Valiosos</h3>
         </div>
         ${topProducts.length > 0 ? `
-          <div class="table-wrap">
+          ${compact ? `
+          <div class="mobile-stack">
+            ${topProducts.map((product) => `
+              <article class="mobile-card">
+                <div class="mobile-card-header">
+                  <strong>${product.name}</strong>
+                  <span class="badge badge-info">${product.qty} un.</span>
+                </div>
+                <div class="mobile-meta">
+                  <span>Categoria</span>
+                  <strong>${product.category || 'Sem categoria'}</strong>
+                </div>
+                <div class="mobile-meta">
+                  <span>Valor total</span>
+                  <strong>${formatMoney(product.qty * product.price)}</strong>
+                </div>
+              </article>
+            `).join('')}
+          </div>
+          ` : `<div class="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -462,7 +511,7 @@ function renderDashboard() {
                 `).join('')}
               </tbody>
             </table>
-          </div>
+          </div>`}
         ` : '<div class="empty-state"><div class="empty-icon">P</div><div class="empty-title">Nenhum produto cadastrado</div></div>'}
       </div>
 
@@ -471,7 +520,26 @@ function renderDashboard() {
           <h3 class="card-title">Movimentacoes Recentes</h3>
         </div>
         ${recentMovements.length > 0 ? `
-          <div class="table-wrap">
+          ${compact ? `
+          <div class="mobile-stack">
+            ${recentMovements.map((movement) => `
+              <article class="mobile-card">
+                <div class="mobile-card-header">
+                  <strong>${movement.productName}</strong>
+                  <span class="badge ${movement.type === 'entry' ? 'badge-success' : 'badge-danger'}">${movement.type === 'entry' ? 'Entrada' : 'Saida'}</span>
+                </div>
+                <div class="mobile-meta">
+                  <span>Quantidade</span>
+                  <strong>${movement.qty}</strong>
+                </div>
+                <div class="mobile-meta">
+                  <span>Data</span>
+                  <strong>${formatDate(movement.date)}</strong>
+                </div>
+              </article>
+            `).join('')}
+          </div>
+          ` : `<div class="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -492,7 +560,7 @@ function renderDashboard() {
                 `).join('')}
               </tbody>
             </table>
-          </div>
+          </div>`}
         ` : '<div class="empty-state"><div class="empty-icon">M</div><div class="empty-title">Nenhuma movimentacao registrada</div></div>'}
       </div>
     </div>
@@ -560,6 +628,7 @@ function renderProducts() {
 function renderProductsTable(search = '', filtered = products) {
   const tableEl = document.getElementById('productsTable');
   if (!tableEl) return;
+  const compact = isCompactLayout();
 
   let list = filtered;
   if (search) {
@@ -573,6 +642,57 @@ function renderProductsTable(search = '', filtered = products) {
 
   if (list.length === 0) {
     tableEl.innerHTML = '<div class="empty-state"><div class="empty-icon">P</div><div class="empty-title">Nenhum produto encontrado</div><p>Adicione um novo produto para comecar</p></div>';
+    return;
+  }
+
+  if (compact) {
+    tableEl.innerHTML = `
+      <div class="mobile-stack">
+        ${list.map((product) => {
+          const stockMeta = getStockMeta(product);
+          return `
+            <article class="mobile-card">
+              <div class="mobile-card-header">
+                <strong>${product.name}</strong>
+                <span class="badge badge-${stockMeta.status}">${stockMeta.label}</span>
+              </div>
+              <div class="mobile-meta">
+                <span>SKU</span>
+                <strong>${product.sku || '-'}</strong>
+              </div>
+              <div class="mobile-meta">
+                <span>Categoria</span>
+                <strong>${product.category || '-'}</strong>
+              </div>
+              <div class="mobile-meta">
+                <span>Fornecedor</span>
+                <strong>${product.supplier ? getSupplierName(product.supplier) : 'N/A'}</strong>
+              </div>
+              <div class="mobile-grid">
+                <div class="mobile-meta">
+                  <span>Quantidade</span>
+                  <strong>${product.qty}</strong>
+                </div>
+                <div class="mobile-meta">
+                  <span>Preco unit.</span>
+                  <strong>${formatMoney(product.price)}</strong>
+                </div>
+              </div>
+              <div class="mobile-meta">
+                <span>Valor total</span>
+                <strong>${formatMoney(product.qty * product.price)}</strong>
+              </div>
+              <div class="mobile-actions">
+                <button class="btn-icon" onclick="adjustStock('${product.id}', 'entry')" title="Entrada">+</button>
+                <button class="btn-icon" onclick="adjustStock('${product.id}', 'exit')" title="Saida">-</button>
+                <button class="btn-icon" onclick="editProduct('${product.id}')" title="Editar">E</button>
+                <button class="btn-icon" onclick="deleteProduct('${product.id}')" title="Excluir">X</button>
+              </div>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    `;
     return;
   }
 
@@ -658,6 +778,7 @@ function renderSuppliers() {
 function renderSuppliersTable(search = '') {
   const tableEl = document.getElementById('suppliersTable');
   if (!tableEl) return;
+  const compact = isCompactLayout();
 
   let list = suppliers;
   if (search) {
@@ -671,6 +792,41 @@ function renderSuppliersTable(search = '') {
 
   if (list.length === 0) {
     tableEl.innerHTML = '<div class="empty-state"><div class="empty-icon">F</div><div class="empty-title">Nenhum fornecedor encontrado</div><p>Adicione um novo fornecedor para comecar</p></div>';
+    return;
+  }
+
+  if (compact) {
+    tableEl.innerHTML = `
+      <div class="mobile-stack">
+        ${list.map((supplier) => {
+          const productsCount = products.filter((product) => product.supplier === supplier.id).length;
+          return `
+            <article class="mobile-card">
+              <div class="mobile-card-header">
+                <strong>${supplier.name}</strong>
+                <span class="badge badge-info">${productsCount} produto${productsCount !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="mobile-meta">
+                <span>CNPJ</span>
+                <strong>${supplier.cnpj || '-'}</strong>
+              </div>
+              <div class="mobile-meta">
+                <span>Telefone</span>
+                <strong>${supplier.phone || '-'}</strong>
+              </div>
+              <div class="mobile-meta">
+                <span>E-mail</span>
+                <strong>${supplier.email || '-'}</strong>
+              </div>
+              <div class="mobile-actions">
+                <button class="btn-icon" onclick="editSupplier('${supplier.id}')" title="Editar">E</button>
+                <button class="btn-icon" onclick="deleteSupplier('${supplier.id}')" title="Excluir">X</button>
+              </div>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    `;
     return;
   }
 
@@ -750,9 +906,40 @@ function renderMovements() {
 function renderMovementsTable(list = movements) {
   const tableEl = document.getElementById('movementsTable');
   if (!tableEl) return;
+  const compact = isCompactLayout();
 
   if (list.length === 0) {
     tableEl.innerHTML = '<div class="empty-state"><div class="empty-icon">M</div><div class="empty-title">Nenhuma movimentacao registrada</div></div>';
+    return;
+  }
+
+  if (compact) {
+    tableEl.innerHTML = `
+      <div class="mobile-stack">
+        ${list.map((movement) => `
+          <article class="mobile-card">
+            <div class="mobile-card-header">
+              <strong>${movement.productName}</strong>
+              <span class="badge ${movement.type === 'entry' ? 'badge-success' : 'badge-danger'}">${movement.type === 'entry' ? 'Entrada' : 'Saida'}</span>
+            </div>
+            <div class="mobile-grid">
+              <div class="mobile-meta">
+                <span>Quantidade</span>
+                <strong>${movement.qty}</strong>
+              </div>
+              <div class="mobile-meta">
+                <span>Data</span>
+                <strong>${formatDate(movement.date)}</strong>
+              </div>
+            </div>
+            <div class="mobile-meta">
+              <span>Observacoes</span>
+              <strong>${movement.notes || '-'}</strong>
+            </div>
+          </article>
+        `).join('')}
+      </div>
+    `;
     return;
   }
 
@@ -788,6 +975,7 @@ function renderReports() {
   const totalValue = products.reduce((sum, product) => sum + (product.qty * product.price), 0);
   const avgValue = products.length > 0 ? totalValue / products.length : 0;
   const categoriesMap = {};
+  const compact = isCompactLayout();
 
   products.forEach((product) => {
     const category = product.category || 'Sem categoria';
@@ -838,7 +1026,34 @@ function renderReports() {
         <h3 class="card-title">Valor por Categoria</h3>
       </div>
       ${Object.keys(categoriesMap).length > 0 ? `
-        <div class="table-wrap">
+        ${compact ? `
+        <div class="mobile-stack">
+          ${Object.entries(categoriesMap)
+            .sort((a, b) => b[1].value - a[1].value)
+            .map(([category, data]) => {
+              const percentage = totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : '0.0';
+              return `
+                <article class="mobile-card">
+                  <div class="mobile-card-header">
+                    <strong>${category}</strong>
+                    <span class="badge badge-info">${percentage}%</span>
+                  </div>
+                  <div class="mobile-meta">
+                    <span>Quantidade total</span>
+                    <strong>${data.count}</strong>
+                  </div>
+                  <div class="mobile-meta">
+                    <span>Valor total</span>
+                    <strong>${formatMoney(data.value)}</strong>
+                  </div>
+                  <div class="mobile-progress">
+                    <div class="mobile-progress-bar" style="width: ${percentage}%;"></div>
+                  </div>
+                </article>
+              `;
+            }).join('')}
+        </div>
+        ` : `<div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -872,7 +1087,7 @@ function renderReports() {
               }).join('')}
           </tbody>
         </table>
-        </div>
+        </div>`}
       ` : '<div class="empty-state"><div class="empty-icon">R</div><div class="empty-title">Sem dados para exibir</div></div>'}
     </div>
   `);
@@ -881,6 +1096,7 @@ function renderReports() {
 function renderAlerts() {
   const lowStock = products.filter((product) => product.qty > 0 && product.qty <= (product.minStock || 10));
   const outOfStock = products.filter((product) => product.qty === 0);
+  const compact = isCompactLayout();
 
   setMainContent(`
     <div class="top-bar">
@@ -895,7 +1111,29 @@ function renderAlerts() {
         <h3 class="card-title">Estoque Baixo (${lowStock.length})</h3>
       </div>
       ${lowStock.length > 0 ? `
-        <div class="table-wrap">
+        ${compact ? `
+        <div class="mobile-stack">
+          ${lowStock.map((product) => `
+            <article class="mobile-card">
+              <div class="mobile-card-header">
+                <strong>${product.name}</strong>
+                <span class="badge badge-warning">${product.qty}</span>
+              </div>
+              <div class="mobile-grid">
+                <div class="mobile-meta">
+                  <span>Quantidade atual</span>
+                  <strong>${product.qty}</strong>
+                </div>
+                <div class="mobile-meta">
+                  <span>Estoque minimo</span>
+                  <strong>${product.minStock || 10}</strong>
+                </div>
+              </div>
+              <button class="btn btn-primary mobile-full-btn" onclick="adjustStock('${product.id}', 'entry')">Adicionar Estoque</button>
+            </article>
+          `).join('')}
+        </div>
+        ` : `<div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -920,7 +1158,7 @@ function renderAlerts() {
             `).join('')}
           </tbody>
         </table>
-        </div>
+        </div>`}
       ` : '<div class="empty-state"><div class="empty-icon">OK</div><div class="empty-title">Nenhum produto com estoque baixo</div></div>'}
     </div>
 
@@ -929,7 +1167,27 @@ function renderAlerts() {
         <h3 class="card-title">Sem Estoque (${outOfStock.length})</h3>
       </div>
       ${outOfStock.length > 0 ? `
-        <div class="table-wrap">
+        ${compact ? `
+        <div class="mobile-stack">
+          ${outOfStock.map((product) => `
+            <article class="mobile-card">
+              <div class="mobile-card-header">
+                <strong>${product.name}</strong>
+                <span class="badge badge-danger">Sem estoque</span>
+              </div>
+              <div class="mobile-meta">
+                <span>Categoria</span>
+                <strong>${product.category || '-'}</strong>
+              </div>
+              <div class="mobile-meta">
+                <span>Ultima atualizacao</span>
+                <strong>${product.lastUpdate ? formatDate(product.lastUpdate) : '-'}</strong>
+              </div>
+              <button class="btn btn-primary mobile-full-btn" onclick="adjustStock('${product.id}', 'entry')">Repor Estoque</button>
+            </article>
+          `).join('')}
+        </div>
+        ` : `<div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -954,7 +1212,7 @@ function renderAlerts() {
             `).join('')}
           </tbody>
         </table>
-        </div>
+        </div>`}
       ` : '<div class="empty-state"><div class="empty-icon">OK</div><div class="empty-title">Nenhum produto sem estoque</div></div>'}
     </div>
   `);
@@ -1360,3 +1618,13 @@ async function initializeLogin() {
 }
 
 initializeLogin();
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => {
+    if (!document.body.classList.contains('auth-locked')) {
+      renderCurrentPage();
+    }
+  }, 120);
+});
